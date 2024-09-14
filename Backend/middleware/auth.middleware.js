@@ -1,7 +1,5 @@
 import jwt from "jsonwebtoken";
 import User from "../Model/user.Model.js";
-// import asyncHandler from "../utils/asyncHandler.js"; // Correct import for asyncHandler
-// import ApiError from "../utils/ApiError.js"; // Correct import for ApiError
 
 // Middleware to verify JWT token
 export const verifyJWT = async (req, res, next) => {
@@ -11,27 +9,25 @@ export const verifyJWT = async (req, res, next) => {
     req.header("Authorization")?.replace("Bearer ", "");
 
   if (!token) {
-    throw error(401, "Unauthorized request: No token provided");
+    return res.status(401).json({ message: "Unauthorized request: No token provided" });
   }
 
   try {
     // Verify the token with the secret
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
     // Fetch user from the database using the ID from the decoded token
-    const user = await User.findById(decodedToken?.id).select(
-      "-password -refreshToken" // Exclude sensitive information
-    );
+    const user = await User.findById(decodedToken.id).select("-password -refreshToken");
 
     if (!user) {
-      throw new error(401, "Invalid Access Token: User not found");
+      return res.status(401).json({ message: "Invalid Access Token: User not found" });
     }
 
     // Attach the user information to the request object
     req.user = user;
     next();
   } catch (error) {
-    throw new error(401, "Unauthorized: Invalid token");
+    return res.status(401).json({ message: "Unauthorized: Invalid token" });
   }
 };
 
