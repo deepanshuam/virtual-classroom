@@ -1,46 +1,51 @@
+import { ApiError } from "../utils/ApiErrors.js";
 import jwt from "jsonwebtoken";
-import User from "../Model/user.Model.js";
+import { User } from "../models/user.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-// Middleware to verify JWT token
-export const verifyJWT = async (req, res, next) => {
-  // Extract the token from either cookies or the Authorization header
-  const token =
-    req.cookies?.accessToken ||
-    req.header("Authorization")?.replace("Bearer ", "");
+
+export const verifyJWT = asyncHandler(async (req, res, next) => {
+  const token = req.cookies?.accessToken || req.header('Authorization')?.replace('Bearer ', '');
 
   if (!token) {
-    return res.status(401).json({ message: "Unauthorized request: No token provided" });
+    throw new ApiError(401, "Unauthorized request");
   }
 
-  try {
-    // Verify the token with the secret
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+  const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-    // Fetch user from the database using the ID from the decoded token
-    const user = await User.findById(decodedToken.id).select("-password -refreshToken");
+  const user = await User.findById(decodedToken?._id).select('-password -refreshToken');
 
-    if (!user) {
-      return res.status(401).json({ message: "Invalid Access Token: User not found" });
-    }
-
-    // Attach the user information to the request object
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(401).json({ message: "Unauthorized: Invalid token" });
+  if (!user) {
+    throw new ApiError(401, "Invalid Access Token");
   }
-};
 
-// Middleware to check if the user has admin role
+  req.user = user;
+  next();
+});
+
 export const isAdmin = (req, res, next) => {
-  // Check if the user's role is admin
-  if (req.user.role !== "admin") {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({
       statusCode: 403,
       data: null,
       success: false,
-      errors: [{ message: "Forbidden: User is not allowed" }],
+      errors: [{ message: "User are not allowed" }],
     });
   }
   next();
 };
+
+// Auth.Middleware.js
+
+export const isTeacher = (req, res, next) => {
+  if (req.user.role !== 'teacher') {
+    return res.status(403).json({
+      statusCode: 403,
+      data: null,
+      success: false,
+      errors: [{ message: "User is not a teacher" }],
+    });
+  }
+  next();
+};
+
